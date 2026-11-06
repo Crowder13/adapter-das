@@ -75,64 +75,42 @@ docker exec <现役> tar -C /opt/dtk -cf - aillvm hcu_llvm.info blas_cut.info \
 栈内容以现役容器 `pip list` 为准；torch 三件版本 torch 2.11.0（hip 7.2.26365）/
 torchvision 0.26.0 / triton 3.6.0（2026-11-05 实测，均随栈迁移，勿 pip 覆盖）。
 
-## 2. 直接装的依赖（平台中立，版本随上游声明）
+## 2. 直接装的依赖（平台中立，已收编为 adapter extra）
 
-第一批：**服务框架与调度**
-
-```bash
-pip install "aiohttp" "fastapi" "uvicorn>=0.51" "uvloop" "watchfiles" \
-  "pyzmq>=25.1.2" "orjson" "msgspec" "setproctitle" "psutil" \
-  "prometheus-client>=0.20.0" "packaging"
-```
-
-第二批：**模型/词表/结构化输出**
+**2026-11-06 起，下列六批依赖固化进 adapter wheel 的
+`[project.optional-dependencies] sglang-runtime`**（adapter 仓 `pyproject.toml`；
+清单底料仍是上游 v0.5.22 `python/pyproject.toml`）。装 §3① 的 adapter wheel 时带
+extra 即可一次拉齐，不再逐批手敲：
 
 ```bash
-pip install "transformers==5.19.0" "tokenizers==0.23.2" "sentencepiece==0.2.1" \
-  "tiktoken" "blobfile==3.0.0" "gguf" "compressed-tensors==0.18.0" \
-  "outlines==0.1.11" "xgrammar==0.2.7" "llguidance>=1.7.6,<2.0.0" \
-  "interegular" "partial_json_parser" "einops"
+HCU_ADAPTER_HOST=none pip install "$(ls /wheels/sgl_kernel-*.whl)[sglang-runtime]"
 ```
 
-第三批：**推理客户端/生态胶水**
+**前置条件不变**：必须在 §1.5 迁移完 DTK 栈之后执行——adapter 的 base dependencies
+含 `torch>=2.0` / `triton>=2.1`，torch 栈不在位时 pip 会把 PyPI CUDA 版拖进来。
+`--no-deps` 流程（如 vllm032）不解析 extra，行为不变。
 
-```bash
-pip install "openai==2.8.0" "anthropic>=0.20.0" "mistral_common>=1.11.5" \
-  "modelscope" "datasets" "huggingface-hub" "requests" "tqdm" \
-  "openai-harmony==0.0.4"
-```
+清单（分组仅供维护对照，版本随上游声明）：
 
-第四批：**科学计算/媒体/杂项**
-
-```bash
-pip install "numpy" "scipy" "numba==0.65.1" "pillow" "soundfile==0.13.1" \
-  "timm==1.0.25" "kernels>=0.14.1,<0.15" "regex" "pybase64" "pydantic" \
-  "python-dateutil<3" "python-multipart" "distro" "easydict" "xxhash" \
-  "zstandard" "ninja" "build" "IPython" "py-spy"
-```
-
-第五批：**多模态与条件依赖**（x86_64 Linux 上游声明为无条件，若镜像跑纯文本可裁剪）
-
-```bash
-pip install "smg-grpc-servicer>=0.9.0" "deepseek-recipe==0.2.0" "tml-renderers==0.1.0" \
-  "torch_memory_saver>=0.0.9.post1"   # 需与迁移 torch 匹配编译版
-```
-
-第六批：**纯绑定 CUDA 包**（§1 修正项；只为让官方 CUDA-only 分支的 import 探测通过，
-运行时自然落 fallback。版本与现役栈一致）
-
-```bash
-pip install "cuda-bindings==13.4.4" "nvidia-cutlass-dsl==4.8.1"
-```
+| 组 | 包 |
+|---|---|
+| 服务框架与调度 | `aiohttp` `fastapi` `uvicorn>=0.51` `uvloop` `watchfiles` `pyzmq>=25.1.2` `orjson` `msgspec` `setproctitle` `psutil` `prometheus-client>=0.20.0`（`packaging` 在 base） |
+| 模型/词表/结构化输出 | `transformers==5.19.0` `tokenizers==0.23.2` `sentencepiece==0.2.1` `tiktoken` `blobfile==3.0.0` `gguf` `compressed-tensors==0.18.0` `outlines==0.1.11` `xgrammar==0.2.7` `llguidance>=1.7.6,<2.0.0` `interegular` `partial_json_parser` `einops` |
+| 推理客户端/生态胶水 | `openai==2.8.0` `anthropic>=0.20.0` `mistral_common>=1.11.5` `modelscope` `datasets` `huggingface-hub` `requests` `tqdm` `openai-harmony==0.0.4` |
+| 科学计算/媒体/杂项 | `numpy` `scipy` `numba==0.65.1` `pillow` `soundfile==0.13.1` `timm==1.0.25` `kernels>=0.14.1,<0.15` `regex` `pybase64` `pydantic` `python-dateutil<3` `python-multipart` `distro` `easydict` `xxhash` `zstandard` `ninja` `build` `IPython` `py-spy` |
+| 多模态 | `smg-grpc-servicer>=0.9.0` `deepseek-recipe==0.2.0` `tml-renderers==0.1.0` |
+| 纯绑定 CUDA 包 | `cuda-bindings==13.4.4` `nvidia-cutlass-dsl==4.8.1` |
 
 备注（装前一眼灵魂三问，告警即拆）：
+- **§1 的 CUDA-only 排除项永远不进 extra**（`sglang-kernel`、`flash-attn-4`、
+  `flashinfer_python`、`deep-ep` 等）——写进去 pip 解析即失败或装上 CUDA 编译物；
 - `av`/`decord2`（视频栈）上游声明只在 aarch64 生效，x86 镜像可不装；VL 模型视频输入需要时再补；
 - `nvidia-ml-py`：nvml 探针库，纯 python 绑定，装了无害但平台判定不走它——首轮未装，
   起服日志无 nvml ImportError（实测 §6#7），需要时再补；
 - **py3.12 轮子覆盖度**：上表全部为主流 PyPI 包，py3.12 manylinux 轮子齐全；`numba==0.65.1`
   与迁移栈 numpy 2.3.5 实测 import 通过（§6#6 钉值）；
-- `torch_memory_saver`：首轮未装（torch 版匹配的编译版未随 DTK 栈迁移），用到 memory saver
-  特性时按 torch 2.11.0+hip 源码装。
+- `torch_memory_saver`：**条件项，不进 extra**（torch 版匹配的编译版未随 DTK 栈迁移），
+  首轮未装；用到 memory saver 特性时按 torch 2.11.0+hip 源码装或单独 pip 装。
 
 ## 3. 我们的 wheel 与装包顺序（装包顺序即配置）
 
@@ -157,8 +135,9 @@ HCU_ADAPTER_HOST=none python3 -c "import tvm_ffi"    # 实测 51 s 一次性构�
 
 ```dockerfile
 # ① adapter：shadow dist sgl-kernel + hcu_adapter + sitecustomize（一发四件）
+#    [sglang-runtime] extra 一次拉齐 §2 六批平台中立依赖（须在 §1.5 迁移之后）
 COPY wheels/sgl_kernel-*.whl /wheels/
-RUN HCU_ADAPTER_HOST=none pip install /wheels/sgl_kernel-*.whl
+RUN HCU_ADAPTER_HOST=none pip install "$(ls /wheels/sgl_kernel-*.whl)[sglang-runtime]"
 
 # ② 官方 sglang，零修改；--no-deps 是策略不是图省事（§0）
 COPY wheels/sglang-0.5.22-py3-*.whl /wheels/
@@ -174,7 +153,7 @@ RUN HCU_ADAPTER_HOST=none python3 -c "import tvm_ffi"
 ```
 
 顺序无关性说明：①②③ 相互独立（shadow 按 sys.modules 截击，不依赖安装次序），
-但都在 §1.5 迁移与 §2 六批依赖之后；④ 只依赖 torch 栈（§1.5①）就位。
+但都在 §1.5 迁移之后（§2 六批依赖已并入 ① 的 extra）；④ 只依赖 torch 栈（§1.5①）就位。
 
 ## 4. 已知接线点（官方原样树特有的，das fork 树没有的）
 
@@ -271,7 +250,9 @@ given`。L1.5 叠加格（Engine worker 路径）三轮全绿未触发该调用�
 ## 7. 维护
 
 - 依赖清单的**唯一底料**是上游 `python/pyproject.toml` 的 dependencies 数组；
-  上游每次换基线（如 0.5.23），本文第 1~2 节按 diff 渐进更新，不重写。
+  同一份清单已固化进 adapter 仓 `pyproject.toml` 的 `sglang-runtime` extra。
+  上游每次换基线（如 0.5.23），本文第 1~2 节与 extra 按 diff **同步**渐进更新，
+  不重写；§1 的 CUDA-only 排除项与 §1.5 的 DTK 栈/工具链永不进 extra。
 - **2026-11-05 首轮定案已写回**（§0/§1.5/§2/§3/§5/§6）：镜像缺件补法（DTK 栈+aillvm
   迁移、tvm-ffi 预热、cuda-bindings 增装）与装包期 `HCU_ADAPTER_HOST=none` 是新增的
   常设内容，后续换基线时一并继承。遗留未销项：§6#2 红绿门复跑、§6#5 缓存种子逐项
