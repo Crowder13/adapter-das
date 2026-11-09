@@ -15,6 +15,76 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Official sglang v0.5.22 runtime deps, platform-neutral subset only.
+# CUDA-only deps (sglang-kernel, flash-attn-4, flashinfer_python, ...) must stay out.
+# Keep in sync with upstream python/pyproject.toml; see docs/image-dtk2610.md §2.
+# Install: pip install "$(ls /wheels/sgl_kernel-*.whl)[sglang-runtime]"
+sglang-runtime = [
+    # 服务框架与调度
+    "aiohttp",
+    "fastapi",
+    "uvicorn>=0.51",
+    "uvloop",
+    "watchfiles",
+    "pyzmq>=25.1.2",
+    "orjson",
+    "msgspec",
+    "setproctitle",
+    "psutil",
+    "prometheus-client>=0.20.0",
+    # 模型/词表/结构化输出
+    "transformers==5.19.0",
+    "tokenizers==0.23.2",
+    "sentencepiece==0.2.1",
+    "tiktoken",
+    "blobfile==3.0.0",
+    "gguf",
+    "compressed-tensors==0.18.0",
+    "outlines==0.1.11",
+    "xgrammar==0.2.7",
+    "llguidance>=1.7.6,<2.0.0",
+    "interegular",
+    "partial_json_parser",
+    "einops",
+    # 推理客户端/生态胶水
+    "openai==2.8.0",
+    "anthropic>=0.20.0",
+    "mistral_common>=1.11.5",
+    "modelscope",
+    "datasets",
+    "huggingface-hub",
+    "requests",
+    "tqdm",
+    "openai-harmony==0.0.4",
+    # 科学计算/媒体/杂项
+    "numpy",
+    "scipy",
+    "numba==0.65.1",
+    "pillow",
+    "soundfile==0.13.1",
+    "timm==1.0.25",
+    "kernels>=0.14.1,<0.15",
+    "regex",
+    "pybase64",
+    "pydantic",
+    "python-dateutil<3",
+    "python-multipart",
+    "distro",
+    "easydict",
+    "xxhash",
+    "zstandard",
+    "ninja",
+    "build",
+    "IPython",
+    "py-spy",
+    # 多模态（torch_memory_saver 条件项，不进 extra，见文档）
+    "smg-grpc-servicer>=0.9.0",
+    "deepseek-recipe==0.2.0",
+    "tml-renderers==0.1.0",
+    # 纯绑定 CUDA 包（只为官方 CUDA-only 分支的 import 探测通过）
+    "cuda-bindings==13.4.4",
+    "nvidia-cutlass-dsl==4.8.1",
+]
 # Official sglang v0.5.22 `diffusion` extra, platform-neutral subset only.
 # CUDA-only 排除项：nvidia-modelopt / runai_model_streamer / st_attn / vsa（均惰性
 # import，缺包只影响对应 optional backend/loader，不挡 import 面）。未在 HCU 实测——
