@@ -19,6 +19,8 @@ dependencies = [
 # CUDA-only 排除项：nvidia-modelopt / runai_model_streamer / st_attn / vsa（均惰性
 # import，缺包只影响对应 optional backend/loader，不挡 import 面）。未在 HCU 实测——
 # 本 extra 只打开上游 diffusion 入口，不代表 serving 已验证。
+# 与上游的偏离：opencv-python-headless 由 ==4.10.0.84 放宽为 >=4.13.0——上游钉值
+# 与 resident vllm（要求 >=4.13.0）无交集；diffusion 代码只用跨版本稳定的 cv2 API。
 # Keep in sync with upstream python/pyproject.toml; see docs/image-dtk2610.md §2/§7.
 # Install: pip install "$(ls /wheels/sgl_kernel-*.whl)[sglang-diffusion]"
 sglang-diffusion = [
@@ -31,7 +33,7 @@ sglang-diffusion = [
     "imageio-ffmpeg==0.5.1",
     "moviepy>=2.0.0",
     "msgpack",
-    "opencv-python-headless==4.10.0.84",
+    "opencv-python-headless>=4.13.0",
     "PyYAML==6.0.1",
     "remote-pdb==2.1.0",
     "scikit-image==0.25.2",
