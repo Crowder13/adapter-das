@@ -10,14 +10,18 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "packaging>=23",
-    "torch==2.11.0",
-    "triton==3.6.0",
+    "torch==2.13.0",
+    "triton==3.7.0",
 ]
 
 [project.optional-dependencies]
 # Official sglang v0.5.22 runtime deps, platform-neutral subset only.
 # CUDA-only deps (sglang-kernel, flash-attn-4, flashinfer_python, ...) must stay out.
-# Keep in sync with upstream python/pyproject.toml; see docs/image-dtk2610.md §2.
+# Shared pins follow the resident vllm 0.33.0 stack (sglang itself is installed
+# --no-deps): numba, compressed-tensors, openai. outlines / smg-grpc-servicer are
+# omitted because their outlines_core / grpcio pins conflict with vllm and sglang
+# imports them only lazily (--grammar-backend outlines, gRPC serving). See
+# docs/image-dtk2610.md §2.
 # Install: pip install "$(ls /wheels/sgl_kernel-*.whl)[sglang-runtime]"
 sglang-runtime = [
     # 服务框架与调度
@@ -39,15 +43,14 @@ sglang-runtime = [
     "tiktoken",
     "blobfile==3.0.0",
     "gguf",
-    "compressed-tensors==0.18.0",
-    "outlines==0.1.11",
-    "xgrammar==0.2.7",
+    "compressed-tensors==0.17.0",
+    "xgrammar==0.2.8",
     "llguidance>=1.7.6,<2.0.0",
     "interegular",
     "partial_json_parser",
     "einops",
     # 推理客户端/生态胶水
-    "openai==2.8.0",
+    "openai>=2.25.0",
     "anthropic>=0.20.0",
     "mistral_common>=1.11.5",
     "modelscope",
@@ -59,7 +62,7 @@ sglang-runtime = [
     # 科学计算/媒体/杂项
     "numpy",
     "scipy",
-    "numba==0.65.1",
+    "numba==0.65.0",
     "pillow",
     "soundfile==0.13.1",
     "timm==1.0.25",
@@ -78,7 +81,6 @@ sglang-runtime = [
     "IPython",
     "py-spy",
     # 多模态（torch_memory_saver 条件项，不进 extra，见文档）
-    "smg-grpc-servicer>=0.9.0",
     "deepseek-recipe==0.2.0",
     "tml-renderers==0.1.0",
     # 纯绑定 CUDA 包（只为官方 CUDA-only 分支的 import 探测通过）
@@ -86,12 +88,11 @@ sglang-runtime = [
     "nvidia-cutlass-dsl==4.8.1",
 ]
 # Official sglang v0.5.22 `diffusion` extra, platform-neutral subset only.
-# CUDA-only 排除项：nvidia-modelopt / runai_model_streamer / st_attn / vsa（均惰性
-# import，缺包只影响对应 optional backend/loader，不挡 import 面）。未在 HCU 实测——
-# 本 extra 只打开上游 diffusion 入口，不代表 serving 已验证。
-# 与上游的偏离：opencv-python-headless 由 ==4.10.0.84 放宽为 >=4.13.0——上游钉值
-# 与 resident vllm（要求 >=4.13.0）无交集；diffusion 代码只用跨版本稳定的 cv2 API。
-# Keep in sync with upstream python/pyproject.toml; see docs/image-dtk2610.md §2/§7.
+# CUDA-only deps (nvidia-modelopt / runai_model_streamer / st_attn / vsa) are lazy
+# imports; this extra only opens the entry point, serving is not HCU-verified.
+# Deviations: opencv-python-headless >=4.13.0 and no moviepy — vllm requires
+# pillow>=13 while moviepy caps pillow<12, and sglang does not import moviepy.
+# See docs/image-dtk2610.md §2/§7.
 # Install: pip install "$(ls /wheels/sgl_kernel-*.whl)[sglang-diffusion]"
 sglang-diffusion = [
     "addict==2.4.0",
@@ -101,7 +102,6 @@ sglang-diffusion = [
     "diffusers==0.37.0",
     "imageio==2.36.0",
     "imageio-ffmpeg==0.5.1",
-    "moviepy>=2.0.0",
     "msgpack",
     "opencv-python-headless>=4.13.0",
     "PyYAML==6.0.1",
@@ -111,11 +111,10 @@ sglang-diffusion = [
     "websockets",
     "xatlas",
 ]
-# HCU DTK vendor runtime stack（镜像/栈迁移预装，见 docs/image-dtk2610.md §1.5）。
-# 定位是"环境自检清单"：pip install "$(ls /wheels/sgl_kernel-*.whl)[hcu-runtime]" 时，
-# 已装的 DTK 本地版 wheel（+dtk2610...）直接满足这些无钉要求。务必在 §1.5 栈迁移
-# 之后使用——裸环境下 pip 会去 PyPI 拉同名 CUDA 构建（torch/triton/vllm/aiter 等），
-# 这不是本 extra 的意图。版本由镜像/栈迁移统一管理，故此处不钉。
+# HCU DTK vendor stack, installed from the DTK nightly archive (docker/adapter.Dockerfile).
+# torch==2.13.0 selects the +dtkXXX.torch2130 builds; versions follow the archive, so
+# this extra is intentionally unpinned. Do not install against bare PyPI — same-name
+# CUDA builds would be pulled.
 hcu-runtime = [
     "aiter",
     "boltops",
@@ -128,11 +127,11 @@ hcu-runtime = [
     "flash_mla",
     "lightop",
     "lmcache",
-    "lmslim",
     "mooncake-transfer-engine",
     "nixl",
     "tilelang",
     "torchvision",
+    "torchaudio",
     "vllm",
 ]
 test = [
