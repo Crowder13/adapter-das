@@ -18,11 +18,11 @@ requires-python = ">=3.9"
 license = {text = "Apache-2.0"}
 keywords = ["hcu", "adapter", "sglang", "vllm", "hip"]
 
-# Runtime deps of official sglang v0.5.22 on the validated DTK 26.10 stack
-# (torch 2.13.0 / triton 3.7.0). sglang itself is installed --no-deps: these
-# extras are the dependency carrier, so pip never resolves sglang's CUDA-only
-# pins. Base dependencies above stay limited to the kernel interlock
-# (ci/l0_gate.py enforces that exactly); stack pins live in the extras.
+# Runtime deps of official sglang v0.5.22 on the validated DTK 26.10 stack.
+# sglang itself is installed --no-deps: these extras are the dependency
+# carrier, so pip never resolves sglang's CUDA-only pins. The base
+# dependencies rendered by setup.py/_pin.py carry the kernel interlock plus
+# the validated torch/triton pins; the extras carry the rest of the stack.
 [project.optional-dependencies]
 # Platform-neutral subset of sglang v0.5.22 runtime deps. CUDA-only deps
 # (sglang-kernel, flash-attn-4, flashinfer_python, ...) must stay out.
@@ -31,8 +31,6 @@ keywords = ["hcu", "adapter", "sglang", "vllm", "hip"]
 # / grpcio pins conflict with vllm and sglang imports them only lazily
 # (--grammar-backend outlines, gRPC serving). Rationale: docs/image-dtk2610.md.
 sglang-runtime = [
-    "torch==2.13.0",
-    "triton==3.7.0",
     # 服务框架与调度
     "aiohttp",
     "fastapi",
@@ -123,8 +121,6 @@ sglang-diffusion = [
 # vendor packages are intentionally unpinned. Do not install against bare PyPI
 # — same-name CUDA builds would be pulled.
 hcu-runtime = [
-    "torch==2.13.0",
-    "triton==3.7.0",
     "aiter",
     "boltops",
     "causal_conv1d",

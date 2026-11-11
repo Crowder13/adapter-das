@@ -436,6 +436,8 @@ def check_dual_dist_packaging(r):
     sgl-kernel==<public>[+hcu.<stamp>] from the single kernel version source
     (sgl_kernel/version.py), and build.sh passes one DAS_BUILD_STAMP to both
     wheels. Without a stamp the pin names the public kernel version only.
+    The adapter base dependencies also carry the validated torch/triton pins
+    so a plain adapter install cannot drift to the newest nightly stack.
     Versions are independent lines; only the pin is machine-checked.
     """
     try:

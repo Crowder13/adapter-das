@@ -38,3 +38,12 @@ def adapter_version(stamp=None):
         stamp = build_stamp()
     version = (HERE / "VERSION").read_text(encoding="utf-8").strip()
     return f"{version.split('+', 1)[0]}+hcu.{stamp}" if stamp else version
+
+
+def base_dependencies():
+    """Validated DTK stack pins carried by the adapter dist.
+
+    Mirrors the release line: a plain adapter install must pull the tested
+    torch/triton builds instead of the newest nightly archive versions.
+    """
+    return ["packaging>=23", "torch==2.13.0", "triton==3.7.0"]
