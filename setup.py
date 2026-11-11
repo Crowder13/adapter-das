@@ -14,7 +14,7 @@ def _version():
         raise RuntimeError("cannot read __version__ from sgl_kernel/version.py")
     version = m.group(1)
     stamp = os.environ.get("DAS_BUILD_STAMP", "").strip().strip(".")
-    return f"{version.split('+', 1)[0]}+{stamp}" if stamp else version
+    return f"{version.split('+', 1)[0]}+hcu.{stamp}" if stamp else version
 
 
 setup(version=_version())

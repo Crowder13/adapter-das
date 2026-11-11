@@ -1,9 +1,10 @@
 """Build-time version pin shared by setup.py and ci/l0_gate.py.
 
-DAS_BUILD_STAMP (<time>.g<commit>) is set by packaging/build.sh so both
-wheels of one build carry the same local label and hcu-adapter depends on
-the exact stamped kernel build. Without the stamp (editable/dev installs)
-the adapter falls back to its VERSION file and the kernel's public version.
+DAS_BUILD_STAMP (<time>.g<commit>) is set by packaging/build.sh and rendered
+as the local version hcu.<time>.g<commit>, so both wheels of one build carry
+the same local label and hcu-adapter depends on the exact stamped kernel
+build. Without the stamp (editable/dev installs) the adapter falls back to
+its VERSION file and the kernel's public version.
 """
 import os
 import re
@@ -29,11 +30,11 @@ def kernel_pin(stamp=None):
     if stamp is None:
         stamp = build_stamp()
     version = kernel_public_version()
-    return f"sgl-kernel=={version}+{stamp}" if stamp else f"sgl-kernel=={version}"
+    return f"sgl-kernel=={version}+hcu.{stamp}" if stamp else f"sgl-kernel=={version}"
 
 
 def adapter_version(stamp=None):
     if stamp is None:
         stamp = build_stamp()
     version = (HERE / "VERSION").read_text(encoding="utf-8").strip()
-    return f"{version.split('+', 1)[0]}+{stamp}" if stamp else version
+    return f"{version.split('+', 1)[0]}+hcu.{stamp}" if stamp else version

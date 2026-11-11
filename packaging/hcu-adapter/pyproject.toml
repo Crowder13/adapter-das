@@ -8,7 +8,7 @@ name = "hcu-adapter"
 # this dist's single source is the VERSION file next to this pyproject,
 # encoding the paired upstream *sglang* release). version and dependencies
 # are built by setup.py via _pin.py: a build with DAS_BUILD_STAMP yields
-# <version>+<stamp> and an exact sgl-kernel==<kernel-public>+<stamp>
+# <version>+hcu.<stamp> and an exact sgl-kernel==<kernel-public>+hcu.<stamp>
 # interlock, so the two wheels of one build always pair. Without the stamp,
 # VERSION is used as-is and the kernel is pinned by its public version
 # (a release branch rewrites the baseline parts together).

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Build BOTH adapter-das wheels from the single version source
 # (sgl_kernel/version.py -- governance §7.4). One command, two artifacts:
-#   dist/sgl_kernel-<version>+<stamp>-*.whl   (pure shadow kernel)
-#   dist/hcu_adapter-<version>+<stamp>-*.whl  (adapter: bootstrap + bridges + hooks)
-# Both wheels of one run carry the same <time>.g<commit> stamp, and
+#   dist/sgl_kernel-<version>+hcu.<stamp>-*.whl   (pure shadow kernel)
+#   dist/hcu_adapter-<version>+hcu.<stamp>-*.whl  (adapter: bootstrap + bridges + hooks)
+# Both wheels of one run carry the same hcu.<time>.g<commit> local version, and
 # hcu-adapter pins the exact stamped kernel version (build-time interlock).
 set -euo pipefail
 
@@ -32,7 +32,8 @@ if [ -z "$PY" ]; then
 fi
 [ -n "$PY" ] || { echo "build.sh: no working python3/python on PATH" >&2; exit 1; }
 
-# one stamp for both wheels: <YYMMDDHHMM>.g<commit6>, no dtk/torch parts
+# one stamp for both wheels: <YYMMDDHHMM>.g<commit6> (rendered as hcu.<stamp>),
+# no dtk/torch parts
 DAS_BUILD_STAMP="${DAS_BUILD_STAMP:-$(date +%y%m%d%H%M).g$(git -C "$ROOT" rev-parse --short=6 HEAD)}"
 export DAS_BUILD_STAMP
 
@@ -52,12 +53,12 @@ fi
 
 mkdir -p "$ROOT/dist"
 
-echo "== build stamp: ${DAS_BUILD_STAMP} =="
-echo "== building sgl-kernel ${VERSION}+${DAS_BUILD_STAMP} (repo root) =="
+echo "== build stamp: hcu.${DAS_BUILD_STAMP} =="
+echo "== building sgl-kernel ${VERSION}+hcu.${DAS_BUILD_STAMP} (repo root) =="
 "$PY" -m pip wheel --no-deps --no-build-isolation \
     --wheel-dir "$ROOT/dist" "$ROOT"
 
-echo "== building hcu-adapter ${ADAPTER_VERSION%%+*}+${DAS_BUILD_STAMP} (packaging/hcu-adapter) =="
+echo "== building hcu-adapter ${ADAPTER_VERSION%%+*}+hcu.${DAS_BUILD_STAMP} (packaging/hcu-adapter) =="
 "$PY" -m pip wheel --no-deps --no-build-isolation \
     --wheel-dir "$ROOT/dist" "$ROOT/packaging/hcu-adapter"
 

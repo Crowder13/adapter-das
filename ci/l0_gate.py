@@ -433,7 +433,7 @@ def check_dual_dist_packaging(r):
     py-module, no entry-points, packages limited to sgl_kernel*. hcu-adapter
     (packaging/hcu-adapter) owns sitecustomize + the vllm entry-points and
     interlocks the kernel dist at build time: its setup.py/_pin.py renders
-    sgl-kernel==<public>[+<stamp>] from the single kernel version source
+    sgl-kernel==<public>[+hcu.<stamp>] from the single kernel version source
     (sgl_kernel/version.py), and build.sh passes one DAS_BUILD_STAMP to both
     wheels. Without a stamp the pin names the public kernel version only.
     Versions are independent lines; only the pin is machine-checked.
