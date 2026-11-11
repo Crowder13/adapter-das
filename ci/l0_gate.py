@@ -432,11 +432,11 @@ def check_dual_dist_packaging(r):
     sgl-kernel (root pyproject) is a pure shadow kernel: no sitecustomize
     py-module, no entry-points, packages limited to sgl_kernel*. hcu-adapter
     (packaging/hcu-adapter) owns sitecustomize + the vllm entry-points and
-    interlocks the kernel dist with an exact == pin on the *public* version of
-    the single kernel version source (sgl_kernel/version.py). Local version
-    labels are build stamps (<time>.g<commit>, applied at upload), so the pin
-    must not include them: PEP 440 public-version equality matches any local
-    suffix. Versions are independent lines; only the pin is machine-checked.
+    interlocks the kernel dist at build time: its setup.py/_pin.py renders
+    sgl-kernel==<public>[+<stamp>] from the single kernel version source
+    (sgl_kernel/version.py), and build.sh passes one DAS_BUILD_STAMP to both
+    wheels. Without a stamp the pin names the public kernel version only.
+    Versions are independent lines; only the pin is machine-checked.
     """
     try:
         import tomllib
@@ -470,11 +470,24 @@ def check_dual_dist_packaging(r):
     public_version = kernel_version.split("+", 1)[0]
 
     adapter_project = adapter_pp["project"]
-    if adapter_project.get("dependencies") != [f"sgl-kernel=={public_version}"]:
-        r.fail("dual-dist",
-               f"hcu-adapter dependency must be exactly "
-               f"['sgl-kernel=={public_version}'], got "
-               f"{adapter_project.get('dependencies')!r}")
+    dynamic = adapter_project.get("dynamic") or []
+    if "dependencies" not in dynamic or "version" not in dynamic:
+        r.fail("dual-dist", "hcu-adapter version/dependencies must be dynamic "
+               "(rendered by setup.py/_pin.py at build time)")
+    try:
+        import importlib.util
+        pin_file = adapter_pp_path.parent / "_pin.py"
+        spec = importlib.util.spec_from_file_location("hcu_adapter_build_pin", pin_file)
+        pin_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(pin_mod)
+        pin = pin_mod.kernel_pin(stamp="")
+    except Exception as exc:
+        r.fail("dual-dist", f"cannot evaluate hcu-adapter interlock pin: {exc}")
+    else:
+        if pin != f"sgl-kernel=={public_version}":
+            r.fail("dual-dist",
+                   f"hcu-adapter interlock pin must be "
+                   f"'sgl-kernel=={public_version}', got {pin!r}")
     if adapter_project.get("entry-points", {}).get("vllm.platform_plugins") != {
             "hcu_adapter": "hcu_adapter.bridges.vllm:hcu_platform_plugin"}:
         r.fail("dual-dist", "hcu-adapter vllm.platform_plugins entry-point "
