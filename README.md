@@ -63,6 +63,7 @@ NVIDIA CUDA）上有的行为，HCU 上补齐到一致（影子库/
 （构建期由 `DAS_BUILD_STAMP=<时间>.g<commit>` 渲染出 `+hcu.<时间>.g<commit>`
 同时写入两包版本，adapter 精确依赖同戳内核，无需上传后处理），
 `sgl_kernel/__init__` 哨兵防半装（只装内核不装适配层 → import 期响亮报错）。
+构建戳、互锁、`--no-stamp`、安装组合与排障见 [docs/build.md](docs/build.md)。
 
 ```bash
 # wheel 态（部署）：packaging/build.sh 一次出两张 wheel 到 dist/
