@@ -66,6 +66,7 @@ NVIDIA CUDA）上有的行为，HCU 上补齐到一致（影子库/
 
 ```bash
 # wheel 态（部署）：packaging/build.sh 一次出两张 wheel 到 dist/
+# 不带时间/commit 戳构建：packaging/build.sh --no-stamp
 pip install --no-deps dist/sgl_kernel-*.whl dist/hcu_adapter-*.whl   # 两张都装，顺序无关
 
 # 源码态（开发）
