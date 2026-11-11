@@ -78,6 +78,13 @@ pip install "$(ls -t dist/hcu_adapter-*.whl | head -1)[sglang-runtime,sglang-dif
   即使不带 extras 也不会漂到最新 nightly。
 - 三个 extra 的分工：`sglang-runtime` 官方 sglang 运行时、`sglang-diffusion`
   扩散入口、`hcu-runtime` DTK vendor 栈（aiter/flash_attn/deep_ep/nixl/vllm 等）。
+- `hcu-runtime` 另有三个可独立安装的子 extra：`hcu-runtime-kernels`
+  （aiter/flash_attn/deepgemm 等内核）、`hcu-runtime-serve`（vllm/tilelang/
+  lmcache/mooncake/nixl）、`hcu-runtime-aux`（torchvision/torchaudio）。
+  `hcu-runtime` 通过自引用这三个子 extra 组合，包清单只在子 extra 维护一处
+  （L0 校验组合关系）。镜像构建按子 extra 分 `RUN` 层、最后补装
+  `hcu-runtime` 收尾，可避免单个 docker layer 超过仓库上限；torch/triton 是
+  基础依赖，先单独钉一层效果更好。
 - 官方 sglang 本体以 `--no-deps` 安装，依赖由 adapter extra 提供。
 - 从旧单 dist 版升级：先 `pip uninstall sgl-kernel`，否则同名残留与
   entry-points 双注册。
@@ -110,6 +117,9 @@ python3 -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); print(z.read([n 
 
 ## 8. CI
 
-release 线的 nightly wheel 由 workflow 在构建期写入同一个
-`DAS_BUILD_STAMP` 后直接上传，不做上传后版本改写；`workflow_dispatch`
-只构建并保留 artifact，不推 nightly。
+main 线的 nightly 由
+[.github/workflows/nightly-wheel.yml](../.github/workflows/nightly-wheel.yml)
+在 push 时构建两张同戳 wheel 并一次性上传 nightly 归档（L0 结构门禁已在 MR
+阶段执行，发布流程不重复）；`workflow_dispatch` 只构建并保留 artifact，
+不推 nightly。release 线同理：
+workflow 在构建期写入同一个 `DAS_BUILD_STAMP` 后直接上传，不做上传后版本改写。

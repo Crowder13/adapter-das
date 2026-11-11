@@ -502,6 +502,25 @@ def check_dual_dist_packaging(r):
             "setuptools", {}).get("py-modules", []):
         r.fail("dual-dist", "hcu-adapter must ship sitecustomize (py-modules)")
 
+    # Docker layering split: hcu-runtime composes the subgroups by self-reference.
+    extras = adapter_project.get("optional-dependencies") or {}
+    runtime_groups = (
+        "hcu-runtime-kernels",
+        "hcu-runtime-serve",
+        "hcu-runtime-aux",
+    )
+    missing_groups = [g for g in runtime_groups if g not in extras]
+    if missing_groups:
+        r.fail("dual-dist", f"hcu-runtime subgroups missing: {missing_groups}")
+    else:
+        expected = {f"hcu-adapter[{g}]" for g in runtime_groups}
+        actual = set(extras.get("hcu-runtime") or [])
+        if actual != expected:
+            r.fail("dual-dist",
+                   "hcu-runtime must compose hcu-runtime-kernels/serve/aux "
+                   f"by self-reference; missing={sorted(expected - actual)} "
+                   f"extra={sorted(actual - expected)}")
+
     adapter_version_file = adapter_pp_path.parent / "VERSION"
     if not adapter_version_file.read_text(encoding="utf-8").strip():
         r.fail("dual-dist", "packaging/hcu-adapter/VERSION is empty "

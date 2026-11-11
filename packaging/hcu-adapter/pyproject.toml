@@ -116,11 +116,14 @@ sglang-diffusion = [
     "websockets",
     "xatlas",
 ]
-# HCU DTK vendor stack, installed from the DTK nightly archive. torch==2.13.0
-# selects the +dtkXXX.torch2130 builds; versions follow the archive, so the
-# vendor packages are intentionally unpinned. Do not install against bare PyPI
-# — same-name CUDA builds would be pulled.
-hcu-runtime = [
+# HCU DTK vendor stack from the DTK nightly archive; vendor versions
+# intentionally follow the archive (bare PyPI would pull same-name CUDA builds).
+#
+# Each subgroup installs independently so image builds can split them across
+# docker RUN layers and finish with hcu-runtime, keeping every layer below the
+# registry's per-layer size limit. hcu-runtime self-references the three groups;
+# ci/l0_gate.py enforces the composition.
+hcu-runtime-kernels = [
     "aiter",
     "boltops",
     "causal_conv1d",
@@ -131,13 +134,24 @@ hcu-runtime = [
     "flash_kda",
     "flash_mla",
     "lightop",
+]
+hcu-runtime-serve = [
+    "vllm",
+    "tilelang",
     "lmcache",
     "mooncake-transfer-engine",
     "nixl",
-    "tilelang",
+]
+hcu-runtime-aux = [
     "torchvision",
     "torchaudio",
-    "vllm",
+]
+# One-shot install name for hosts; composed from the subgroups so there is a
+# single package list (pip expands self-referential extras).
+hcu-runtime = [
+    "hcu-adapter[hcu-runtime-kernels]",
+    "hcu-adapter[hcu-runtime-serve]",
+    "hcu-adapter[hcu-runtime-aux]",
 ]
 
 [project.entry-points."vllm.platform_plugins"]
