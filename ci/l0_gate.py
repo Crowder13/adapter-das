@@ -432,9 +432,11 @@ def check_dual_dist_packaging(r):
     sgl-kernel (root pyproject) is a pure shadow kernel: no sitecustomize
     py-module, no entry-points, packages limited to sgl_kernel*. hcu-adapter
     (packaging/hcu-adapter) owns sitecustomize + the vllm entry-points and
-    interlocks the kernel dist with an exact == pin on the single kernel
-    version source (sgl_kernel/version.py). Versions are independent lines;
-    only the pin is machine-checked.
+    interlocks the kernel dist with an exact == pin on the *public* version of
+    the single kernel version source (sgl_kernel/version.py). Local version
+    labels are build stamps (<time>.g<commit>, applied at upload), so the pin
+    must not include them: PEP 440 public-version equality matches any local
+    suffix. Versions are independent lines; only the pin is machine-checked.
     """
     try:
         import tomllib
@@ -465,12 +467,13 @@ def check_dual_dist_packaging(r):
         r.fail("dual-dist", "sgl_kernel/version.py lacks __version__")
         return
     kernel_version = m.group(1)
+    public_version = kernel_version.split("+", 1)[0]
 
     adapter_project = adapter_pp["project"]
-    if adapter_project.get("dependencies") != [f"sgl-kernel=={kernel_version}"]:
+    if adapter_project.get("dependencies") != [f"sgl-kernel=={public_version}"]:
         r.fail("dual-dist",
                f"hcu-adapter dependency must be exactly "
-               f"['sgl-kernel=={kernel_version}'], got "
+               f"['sgl-kernel=={public_version}'], got "
                f"{adapter_project.get('dependencies')!r}")
     if adapter_project.get("entry-points", {}).get("vllm.platform_plugins") != {
             "hcu_adapter": "hcu_adapter.bridges.vllm:hcu_platform_plugin"}:

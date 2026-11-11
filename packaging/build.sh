@@ -12,11 +12,13 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-# interlock pin must equal the single source (l0_gate re-checks; fail here
-# too so a release never builds with a drifted pin)
-if ! grep -q "sgl-kernel==${VERSION}" "$ROOT/packaging/hcu-adapter/pyproject.toml"; then
+# interlock pin must equal the public part of the single source (l0_gate
+# re-checks; fail here too so a release never builds with a drifted pin).
+# The local label is a build stamp (<time>.g<commit>) added at upload, and
+# PEP 440 public-version equality matches any local suffix.
+if ! grep -qF "sgl-kernel==${VERSION%%+*}" "$ROOT/packaging/hcu-adapter/pyproject.toml"; then
     echo "build.sh: packaging/hcu-adapter/pyproject.toml interlock pin" \
-         "does not match version ${VERSION} (governance §7.4)" >&2
+         "does not match public version ${VERSION%%+*} (governance §7.4)" >&2
     exit 1
 fi
 

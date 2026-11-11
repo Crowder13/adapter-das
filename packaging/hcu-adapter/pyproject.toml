@@ -7,16 +7,19 @@ name = "hcu-adapter"
 # hcu-adapter carries its OWN version line (independent of sgl-kernel;
 # this dist's single source is the VERSION file next to this pyproject,
 # encoding the paired upstream *sglang* release). The == interlock pin
-# below must match sgl_kernel/version.py (ci/l0_gate + packaging/build.sh
-# both verify). main keeps a dev pin to match the unpinned kernel dev
-# version; a release branch rewrites both to the paired kernel baseline.
+# below matches the *public* version in sgl_kernel/version.py (ci/l0_gate
+# + packaging/build.sh both verify). Build stamps are local-version labels
+# (<time>.g<commit>) and are intentionally left free: PEP 440 equality on a
+# public version matches any local suffix, so an upload-stamped kernel wheel
+# still satisfies the pin. main keeps a dev pin to match the unpinned kernel
+# dev version; a release branch rewrites both to the paired kernel baseline.
 dynamic = ["version"]
 description = "HCU adapter: framework-level adaptation layer for SGLang & vLLM on Hygon HCU (runtime bootstrap, host bridges, hooks)"
 requires-python = ">=3.9"
 license = {text = "Apache-2.0"}
 keywords = ["hcu", "adapter", "sglang", "vllm", "hip"]
 dependencies = [
-    "sgl-kernel==0.0.0+hcu.dev0",
+    "sgl-kernel==0.0.0",
 ]
 
 # Runtime deps of official sglang v0.5.22 on the validated DTK 26.10 stack

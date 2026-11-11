@@ -59,7 +59,8 @@ NVIDIA CUDA）上有的行为，HCU 上补齐到一致（影子库/
 ## 安装
 
 双 dist（governance §7.4）：`sgl-kernel` 纯影子内核 + `hcu-adapter` 适配层
-（sitecustomize + 桥 + vllm entry-points），版本线各自独立、`==` 互锁，
+（sitecustomize + 桥 + vllm entry-points），版本线各自独立、`==` 互锁
+（公共版本等号；上传时附加的 `+<时间>.g<commit>` 构建戳不影响匹配），
 `sgl_kernel/__init__` 哨兵防半装（只装内核不装适配层 → import 期响亮报错）。
 
 ```bash
