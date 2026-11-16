@@ -171,6 +171,25 @@
 
 **收尾态**：容器树调试补丁已 `git checkout` 还原（common.py `.copy()` 1 行=broadcast 只读缓冲修复，保留）；adapter 已拉 eebddcb（开机 banner "DSV2 capture-mode dual-stream MoE gated off on HIP" 可验针脚活）；生产=graph ON（/root/launch_dsv4f_v0522g.sh，log srv_dsv4f_v0522g.log）四门验证中。插桩在 adapter rel 线（709ae32..d145fe87）+ tmp_fetch/patch_hc_fp*.py 可复用。
 
+### 2026-11-11 Kimi-K3.1-Pro INT4-w4a8 chunked-prefix `merge_state_v2` arity 崩溃（nmz26 8 卡 TP8）
+
+- **症状**：Kimi-K3.1 TP8 服务正常起来，短 prompt 首个请求 200；第二个（更长 prompt）打到
+  chunked-prefix 路径时 scheduler 抛 `TypeError: merge_state_v2() takes 4 positional arguments
+  but 6 were given`，全 rank SIGQUIT、进程树被杀。
+- **根因**：上游 `sglang/srt/layers/attention/merge_state.py` 按 CUDA 契约调用
+  `merge_state_v2(o1, lse1, o2, lse2, output, output_lse)`（写透缓冲 + 返回对）；
+  `is_cuda()` 在 platform seam 下答 True，HCU 因此走该分支，而本仓
+  `sgl_kernel.flash_attn.merge_state_v2` 模拟实现只声明了前 4 个参数。
+  单测只覆盖 4 参数形态，故此前未暴露；`forward_mha.py` 与插件
+  `_chunked_prefix_attn_mha` 都走这条 6 参数调用。
+- **修复**：`merge_state_v2` 增加 `out`/`out_lse`，结果 copy 进缓冲并返回缓冲本身
+  （与 CUDA 的别名语义一致），无缓冲时保持原返回。测试新增 out-buffer 用例，
+  断言返回张量与缓冲同 `data_ptr`、dtype 跟随缓冲、数值仍对 fp32 参考精确。
+- **实证**：`tests/kernels/test_flash_attn3.py` 13 用例全过（`merge_state_v2 out-buffers:
+  o=0.000000 lse=0.000000`）；服务两请求均 200（1.88s / 64 tok），日志无
+  `merge_state_v2` 报错、无后续异常。全量 93 层随后在双机 TP16 上加载完成、
+  服务就绪、请求 200（2026-11-12）；精度与 DFLASH 投机未验。
+
 ### 10-23 夜 engram host 路三层根因破案 + 修复全通（validation-host-26 卡2, cut8 TP1）
 - **症状链**：host 表 boot → 建表/注册全"成功" → 首次 GPU 触表必 KERNEL VMFault（shared 崩在建表 canary、per_rank 崩在首请求）；单元级同序列 5/5 全过——单元与 server 行为分裂。
 - **三层根因（叠罗汉，逐层剥）**：①multi 单测复现是我脚本 mmap 局部变量 GC 悬空假象；②cut8 剪层破了 id 空间不变式（shared 分支 gather 不设界 + id 上限=Σ24 素数，fault VA 散布表上方 20G 与 dmesg 精确吻合；device 路不崩=越界落相邻 VRAM）；③**真凶=platform_seam 强制 is_hip()=False → engram.py 指针翻译短路 return host_ptr，hipHostGetDevicePointer 从未被调用**（v11 教训同款陷阱：seam 语义下 HIP 判定不可信）。
@@ -190,7 +209,7 @@ top20+tail JSD 0.016584；greedy regret 为 0 不能代替分布通过。
 社区 compressed-tensors 加载器拒绝整模型 FP32 诊断配置；未放宽其限制。
 默认 CPU 参考仍拒绝量化，此显式入口不支持 INT8/MoE 或其他 FP8 格式。
 源码完整性通过；配方差异、环境与证据见
-[启动就绪记录](l15-readiness-plan.md#真实-ct-fp8-的独立-cpu-qdq-参考2026-11-04)。
+[启动就绪记录](history/l15-readiness-202611-log.md#真实-ct-fp8-的独立-cpu-qdq-参考2026-11-04)。
 
 ### 2026-11-03 社区 0.5.22 真实 Qwen3 30B Channel-INT8（validation-host-a 卡4）
 
@@ -202,9 +221,25 @@ decode graph 分配 0.021 GB；报告
 修复为补齐显式 W8A8 Linear 缺失的既有 scaled GEMM 全局符号，
 未写回社区源码。CPU FP32 工具仍拒绝量化模型参考，此项未完成完整精度/
 语义验收。cookbook 固定 commit、参数差异与实际 dirty adapter 戳见
-[启动就绪记录](l15-readiness-plan.md#真实-30b-channel-int8-模型启动与生成)。
+[启动就绪记录](history/l15-readiness-202611-log.md#真实-30b-channel-int8-模型启动与生成)。
 
 ### 10-24 validation-host-18 单测三连（P1.1/1.2/1.3，卡 7）
 - **1.1 topk_v2 ragged 转正**：96 例 parity 集合语义 0 错（rem/topk/L/offsets 正交扫，4 reps）；非确定性=atomicAppend 发射到达序（topk_impl.cuh 612/617，paged 臂同源同在跑）；2.2-2.9× 快过 legacy；`HCU_TOPK_V2_RAGGED` 默认翻 1（validation-host-18 容器 dsa_topk_backend.py 已改）。**方法论：topk parity 一律比排序后集合，双跑分离"错"与"序"。**
 - **1.2/1.3 口径翻案（双双达标）**：rmsnorm 5.3-5.9µs=das 地板；router 10µs 快 das 2.8×。教训入库：**①trace 家族和÷单核地板=假膨胀 ②墙钟(bench loop)≠核时，必须 CUDA graph 重放 ③旧 trace 不代表当前树**（act_and_mul 3.1ms/reduce_bf16 438µs 都是 1.0a/b 前旧账）。P1 真残余=eager 段 per-call 50-90µs host 开销（→1.5/1.6）。
 - 容器遗产（/root）：topk_ragged_parity/bench.py、rmsnorm_bench2.py、router_graph/matrix.py、router_baseline.pt——复跑即可。
+
+## HY3 Channel FP8 适配（SGLang 0.5.22）
+
+HY3 Channel FP8 使用每个 token 一份 scale。DeepEP 翻译桥此前将 FP8 的 `quant_group_size` 固定为 128，忽略 plugin 请求的 0，导致低延迟 masked GEMM 收到不匹配的 scale 形状。桥现在透传该参数，默认值仍为 128；Channel FP8 由 plugin 显式选择 0。普通 FP8、UE8M0 和 BF16 的默认调用不变，vLLM 不使用此 SGLang 桥。
+
+AITER all-reduce 的启动探测改为检查模块文件是否存在，避免在设备绑定前导入 GPU 通信模块。文件存在仅表示可以尝试加载，实际使用仍需通过设备与通信能力检查。
+
+### 验证范围
+
+- 离线回归：`tests/adapter/test_deepep_dispatch_scale.py` 覆盖默认 128、显式 0/128、UE8M0 与 BF16 的参数透传；`tests/adapter/test_hcu_env_ar_norm.py` 覆盖 AITER 模块存在、缺失及探测不执行模块代码。两文件共 3 项测试及 3 个子例通过，`tests/test_ops_cpu.py` 38 项通过，adapter L0 通过。这些检查不代替原生内核数值验证。
+- 2026-11-11 组合验证：官方 SGLang `baa9befa`、adapter `9e616cc`、plugin `3eb48a8`；DTK 26.10、Python 3.12、Torch 2.11。HY3 Channel FP8 在 TP8 / attention DP8、DeepEP、FA3、E4M3 KV、NEXTN 配置下完成启动与问答。固定 GSM8K 5-shot 200 题，数值答案正确 197/200，正确且正常结束 196/200；1 题达到输出长度上限，0 请求错误。该结果属于两仓与计算库的组合，不能归为本桥的独立精度结论。
+- NEXTN 缓存回归共 128 次请求完整返回，未复现负尺寸 `-64` 或服务退出；合成 token 输入的冷、热缓存输出仍有差异，原因未定位。早期 0.9 显存配方曾 OOM，8 并发曾出现 NEXTN padding 失败；上述缓存回归没有按这两个原始配方复验。
+
+### 依赖与限制
+
+Channel FP8 需要配套 plugin 显式传入 `quant_group_size=0`。上述组合验证使用静态显存比例 0.70 和部署环境中的 DeepGEMM v4 兼容扩展；该扩展不在本仓提交内，仅安装两仓不能保证复现。AITER custom all-reduce 初始化存在回退警告，通信后端未验收。现有启动环境变量尚未完成配置治理，与 sglang-das 0.5.18 的同条件性能、精度对照也尚未完成。
