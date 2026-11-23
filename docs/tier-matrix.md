@@ -107,6 +107,7 @@ RMSNorm (plain); the fused-add family is its own op below
 |---|---|
 | triton | production default |
 | aiter | candidate aiter.rmsnorm_forward(x,w,eps,traini |
+| lightop | candidate Public BF16 plain RMSNorm; other dty |
 | torch | production reference path |
 
 路由变量：`HCU_RMS_NORM_IMPL`
@@ -528,6 +529,26 @@ w8a8 fused MoE experts (standard dispatch, triton runner entry; deepep runner un
 | aiter | validated DTK aiter_moe; blockwise->ASM tuned  |
 
 路由变量：`HCU_FUSED_MOE_IMPL`
+
+## flashmla_kv_indices
+
+FlashMLA static-pool page-table import compatibility
+
+| 档位 | 状态 / 备注 |
+|---|---|
+| triton | candidate Reuse SGLang's existing page64 kerne |
+
+路由变量：（auto）
+
+## w4a8_contiguous_gemm
+
+DTK W4A8 HIPC code-object ABI compatibility
+
+| 档位 | 状态 / 备注 |
+|---|---|
+| dtk | candidate Optional gfx936 COV5 extension for p |
+
+路由变量：（auto）
 
 ## w4a16_moe
 

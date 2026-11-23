@@ -16,7 +16,7 @@ Schema (hcu_adapter.yaml, first hit wins in discovery order):
     version: 1
     ops:
       silu_and_mul: triton      # triton | lightop | torch
-      rms_norm: aiter           # triton | aiter | torch
+      rms_norm: aiter           # triton | aiter | lightop | torch
       fused_add_rms_norm: triton  # triton | lightop | torch
       allreduce: aiter          # aiter | nccl (custom AR retired 2026-10-19)
       paged_mqa_logits: triton   # triton (DEFAULT, R-13 #4) | emu | vendor
@@ -142,6 +142,8 @@ BACKEND_CATALOG = {
             "aiter": {"status": "candidate",
                       "note": "aiter.rmsnorm_forward(x,w,eps,training) "
                               "-> (out, ..); plain rmsnorm only"},
+            "lightop": {"status": "candidate",
+                        "note": "Public BF16 plain RMSNorm; other dtypes/Gemma use Triton"},
             "torch": {"status": "production",
                       "note": "reference path"},
         },
@@ -743,6 +745,29 @@ BACKEND_CATALOG = {
                               "gemm1_clamp_limit at the vendor boundary"},
         },
     },
+    "flashmla_kv_indices": {
+        "var": None,
+        "summary": "FlashMLA static-pool page-table import compatibility",
+        "backends": {
+            "triton": {
+                "status": "candidate",
+                "note": "Reuse SGLang's existing page64 kernel with optional starts "
+                        "and explicit strides; no host tensor reads or new index math.",
+            },
+        },
+    },
+    "w4a8_contiguous_gemm": {
+        "var": None,
+        "summary": "DTK W4A8 HIPC code-object ABI compatibility",
+        "backends": {
+            "dtk": {
+                "status": "candidate",
+                "note": "Optional gfx936 COV5 extension for pinned DeepGEMM b061ec; "
+                        "preserves INT8 activations, native wrapper and cached aliases. "
+                        "Explicit WASP1006 requests are rejected; full P/D pending.",
+            },
+        },
+    },
     "w4a16_moe": {
         "var": "HCU_W4A16_MOE_IMPL",
         "summary": "W4A16 fused MoE experts (moe_wna16 AWQ/GPTQ-int4 line)",
@@ -829,6 +854,14 @@ def _candidate_paths():
     from . import hcu_env
 
     env, _ = hcu_env.resolve("HCU_CONFIG")
+    if env.startswith("builtin:"):
+        name = env.removeprefix("builtin:")
+        if not name.endswith(".yaml") or os.path.basename(name) != name:
+            raise HcuConfigError(f"Invalid built-in launch config: {env}")
+        path = os.path.join(os.path.dirname(__file__), "launch_configs", name)
+        if not os.path.isfile(path):
+            raise HcuConfigError(f"Missing built-in launch config: {env}")
+        return [path]
     if env:
         out.append(env)
     for base in (os.getcwd(), os.path.dirname(
@@ -858,8 +891,21 @@ def _validate(doc, path):
     if "runtime" in doc:
         raise HcuConfigError("Move DeepInfer runtime settings into hosts.deepinfer")
     hosts = doc.get("hosts", {})
-    if not isinstance(hosts, dict) or set(hosts) - {"deepinfer"}:
-        raise HcuConfigError("Only hosts.deepinfer runtime settings are currently supported")
+    if not isinstance(hosts, dict) or set(hosts) - {"deepinfer", "sglang"}:
+        raise HcuConfigError("Unknown adapter host settings")
+    if "sglang" in hosts:
+        from .glm53_env_rules import LAUNCH_ENV_KEYS
+
+        options = hosts["sglang"]
+        if not isinstance(options, dict):
+            raise HcuConfigError("SGLang host settings must be a mapping")
+        if options.keys() - {"env"}:
+            raise HcuConfigError("Use hosts.sglang.env for SGLang launch settings")
+        env = options.get("env", {})
+        if not isinstance(env, dict) or env.keys() - LAUNCH_ENV_KEYS:
+            raise HcuConfigError("Unknown setting in hosts.sglang.env")
+        if any(type(value) not in (str, int) for value in env.values()):
+            raise HcuConfigError("hosts.sglang.env settings require strings or integers")
     if "deepinfer" in hosts:
         options = hosts["deepinfer"]
         allowed = {"artifacts", "physical_device_count", "allow_cuda_graph", "tilelang_backend", "grouped_gemm_backend"}
