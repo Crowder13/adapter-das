@@ -339,6 +339,55 @@ def install() -> None:
     """Defer vLLM activation to its official plugin discovery lifecycle."""
 
 
+def _rocr_physical_ids(mask: str) -> list[int]:
+    """Resolve ROCr selection tokens into AMD SMI handle indices."""
+    devices = [item.strip() for item in mask.split(",")]
+    if all(item.isdecimal() for item in devices):
+        indices = [int(item) for item in devices]
+    else:
+        import amdsmi
+        from vllm.platforms.rocm import with_amdsmi_context
+
+        @with_amdsmi_context
+        def resolve():
+            handles = amdsmi.amdsmi_get_processor_handles()
+            by_uuid = {}
+            enumerate_gpu = getattr(amdsmi, "amdsmi_get_gpu_enumeration_info", None)
+            for index, handle in enumerate(handles):
+                uuid = None
+                if enumerate_gpu is not None:
+                    try:
+                        uuid = enumerate_gpu(handle).get("hip_uuid")
+                    except amdsmi.AmdSmiException:
+                        pass
+                if not uuid or not uuid.lower().startswith("gpu-"):
+                    try:
+                        serial = amdsmi.amdsmi_get_gpu_asic_info(handle).get("asic_serial")
+                        unique_id = int(serial, 16)
+                    except (amdsmi.AmdSmiException, TypeError, ValueError):
+                        continue
+                    if unique_id == 0:
+                        continue
+                    uuid = f"GPU-{unique_id:016x}"
+                by_uuid.setdefault(uuid.lower(), []).append(index)
+
+            indices = []
+            for item in devices:
+                if item.isdecimal():
+                    indices.append(int(item))
+                    continue
+                matches = by_uuid.get(item.lower(), ())
+                if len(matches) != 1:
+                    raise ValueError(f"ROCR device UUID is missing or ambiguous: {item}")
+                indices.append(matches[0])
+            return indices
+
+        indices = resolve()
+    if len(set(indices)) != len(indices):
+        raise ValueError("ROCR_VISIBLE_DEVICES resolves to duplicate GPU indices")
+    return indices
+
+
 def _hcu_platform_class() -> type:
     """Build the official ROCm-derived platform only when vLLM requests it."""
     existing = globals().get("HcuPlatform")
@@ -351,6 +400,21 @@ def _hcu_platform_class() -> type:
         """Reuse official ROCm behavior under an HCU platform identity."""
 
         device_name = "hcu"
+
+        @classmethod
+        def get_device_uuid(cls, device_id: int = 0) -> str:
+            # Native IPC supplies the current visible device ordinal. SMI
+            # enumerates the unmasked physical GPUs, unlike HIP/HSA.
+            mapper = getattr(cls, "visible_device_id_to_physical_device_id",
+                             cls.device_id_to_physical_device_id)
+            physical = mapper(device_id)
+            rocr = os.environ.get("ROCR_VISIBLE_DEVICES", "")
+            if rocr:
+                devices = _rocr_physical_ids(rocr)
+                if not 0 <= physical < len(devices):
+                    raise ValueError("visible device is outside the ROCR device mapping")
+                physical = devices[physical]
+            return super().get_device_uuid(physical)
 
         @classmethod
         def get_unquantized_aiter_moe_compatibility(cls):
