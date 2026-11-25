@@ -110,3 +110,14 @@ CLI 向导（`tools/hcu_config_wizard.py`）是其命令行形态；`--autotune`
 在文件内 `/*==PURE-BEGIN*/ ... /*==PURE-END*/` 标记之间）。
 
 GLM-5.3 发布脚本通过 `HCU_CONFIG=builtin:文件名.yaml` 指定镜像内置配方，见[环境变量手册](env-vars.md)。
+
+### HY3 release compatibility (2026-11-23)
+
+Explicit `HCU_FA_IMPL=vendor` retains FA3 with `fp8_e5m2` on supported HCU
+architectures. Other modes retain the existing fallback. This does not choose
+a KV layout or alter the vendor attention implementation.
+
+`HCU_DISABLE_OPS=prefill_graph_driver` keeps the original breakable-graph stream
+query. `HCU_DISABLE_OPS=nextn_idle_metadata` keeps the original idle input class.
+Both are startup diagnostics and require a fresh process. Graph capture remains
+enabled; the graph compatibility entry only restores the HIP runtime query.

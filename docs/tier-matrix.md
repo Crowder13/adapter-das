@@ -4,6 +4,16 @@
 > L0 `impl-naming` 做新鲜度校验改表须随 catalog 同 commit（governance §3b）。
 > 文件命名导航规则见 governance §3b；缺档 = 该行空白——那是实现排期的直接输入。
 
+## cuda_graph
+
+HIP driver guard for breakable prefill graph capture
+
+| 档位 | 状态 / 备注 |
+|---|---|
+| prefill-bcg-driver-truth | candidate Preserves prefill graphs and queries |
+
+路由变量：（auto）
+
 ## mamba_state_scatter
 
 SGLang Mamba verify-state copy launch geometry
