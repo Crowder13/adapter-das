@@ -63,7 +63,7 @@ def propagate(original, wrapped, source_module, fallback):
 
 def install():
     """Bind only the fingerprinted upstream helper, leaving official files intact."""
-    from hcu_adapter import hcu_env, registry
+    from hcu_adapter.infra import hcu_env, registry
 
     if not hcu_env.enabled("HCU_HOOK_ALIAS_FAST"):
         return False
