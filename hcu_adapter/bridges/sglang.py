@@ -318,6 +318,9 @@ def install() -> None:
         _install_bridge("layer_dump", _he)
 
 
+        from hcu_adapter import hook_aliases
+        hook_aliases.install()
+
         # 8. deep_ep API bridge -> hcu_adapter/bridges/sglang_deep_ep.py
         _install_bridge("deep_ep", _he)
 
