@@ -165,6 +165,14 @@ def _indexpool_top511_output(X, Indices, Lengths, Out,
              tl.where(ordered == 2147483647, -1, ordered), lane < 511)
 
 
+
+def _indexpool_supported_device(index):
+    """Flash-only gfx93680 qualification; generic TopK unchanged."""
+    props = torch.cuda.get_device_properties(index)
+    return (getattr(props, 'gcnArchName', '').split(':')[0] == 'gfx936'
+            and props.multi_processor_count == 80) or _supported_device(index)
+
+
 def select_indexpool_groups(logits, upper, budget):
     """Candidate exact-rank Top511 from current causal score prefixes.
 
@@ -189,7 +197,7 @@ def select_indexpool_groups(logits, upper, budget):
             or upper.device != logits.device or not upper.is_contiguous()
             or any(t.is_neg() for t in (logits, upper))):
         return None
-    if not _supported_device(logits.device.index):
+    if not _indexpool_supported_device(logits.device.index):
         return None
     from importlib import import_module
     from hcu_adapter._base import Missing
