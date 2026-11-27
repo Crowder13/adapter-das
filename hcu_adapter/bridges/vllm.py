@@ -376,7 +376,12 @@ def _rocr_physical_ids(mask: str) -> list[int]:
                 if item.isdecimal():
                     indices.append(int(item))
                     continue
-                matches = by_uuid.get(item.lower(), ())
+                token = item.lower()
+                matches = []
+                if token.startswith("gpu-") and 5 <= len(token) <= 20:
+                    for uuid, uuid_indices in by_uuid.items():
+                        if uuid.startswith(token):
+                            matches.extend(uuid_indices)
                 if len(matches) != 1:
                     raise ValueError(f"ROCR device UUID is missing or ambiguous: {item}")
                 indices.append(matches[0])

@@ -30,6 +30,9 @@ def test_uuid_uses_physical_device(monkeypatch,visible,logical,expected):
     ("GPU-0000000000000017,0", [1, 0]),
     ("0,GPU-0000000000000017", [0, 1]),
     ("1,0", [1, 0]),
+    ("GPU-000000000000001", [1]),
+    ("GPU-000000000000001,0", [1, 0]),
+    ("1,GPU-00000000000012", [1, 0]),
 ])
 @pytest.mark.parametrize("with_enumeration", [True, False])
 def test_rocr_mask_resolves_smi_indices(monkeypatch, mask, expected, with_enumeration):
@@ -51,3 +54,9 @@ def test_rocr_mask_resolves_smi_indices(monkeypatch, mask, expected, with_enumer
         bridge._rocr_physical_ids("GPU-0000000000000017,1")
     with pytest.raises(ValueError, match="missing or ambiguous"):
         bridge._rocr_physical_ids("GPU-000000000000abcd")
+
+    with pytest.raises(ValueError, match="duplicate GPU indices"):
+        bridge._rocr_physical_ids("GPU-000000000000001,1")
+    for invalid in ("GPU-0", "GPU-", "GPU-00000000000000170", "000000000000001a"):
+        with pytest.raises(ValueError, match="missing or ambiguous"):
+            bridge._rocr_physical_ids(invalid)
