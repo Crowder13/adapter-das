@@ -46,6 +46,7 @@ SWITCHES = {
     "vllm_flashmla_prefill": ("vLLM V4.1 native sparse prefill; fresh-process stock fallback", None),
     "vllm_fp4_indexer": ("V41 FP4 model/cache/producer/reader; fresh-process FP8 rollback", "HCU_VLLM_FP4_INDEXER_IMPL"),
     "vllm_fp4_packer": ("Plugin E2M1 lowering; fresh-process original-binding rollback", "HCU_VLLM_FP4_PACKER_IMPL"),
+    "hy4_indexpool_topk": ("Candidate Flash coarse Top511 via LightOp ragged Top512; fresh-process Torch fallback", None),
     "vllm_scaled_mm": ("vLLM LightOp FP8/INT8 execution bridge; startup Triton fallback", None),
     "w4a8_contiguous_gemm": ("Optional DTK W4A8 HIPC COV5 ABI repair (startup only)", None),
     "vllm_dsv41_channel_fp8": ("vLLM V4.1 channel-FP8 config registration; fresh-process stock fallback", "HCU_VLLM_DSV41_CHANNEL_FP8_IMPL"),
