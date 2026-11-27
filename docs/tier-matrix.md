@@ -1,6 +1,6 @@
 # 算子档位矩阵（自动生成，勿手改）
 
-> 生成：`python tools/gen_tier_matrix.py`（最近 2026-11-24）；事实源 = `BACKEND_CATALOG`（hcu_adapter/infra/hcu_config.py）。
+> 生成：`python tools/gen_tier_matrix.py`（最近 2026-11-25）；事实源 = `BACKEND_CATALOG`（hcu_adapter/infra/hcu_config.py）。
 > L0 `impl-naming` 做新鲜度校验改表须随 catalog 同 commit（governance §3b）。
 > 文件命名导航规则见 governance §3b；缺档 = 该行空白——那是实现排期的直接输入。
 
@@ -44,6 +44,17 @@ Plugin HCU inverse GPT-J RoPE on V41 PCP BF16 attention output
 | stock | candidate Original Core inverse RoPE |
 
 路由变量：（auto）
+
+## hook_alias_propagation
+
+SGLang from-import alias propagation
+
+| 档位 | 状态 / 备注 |
+|---|---|
+| fast | candidate Known source fingerprint; CPython CP |
+| stock | production Official full namespace scan |
+
+路由变量：`1`/`0`
 
 ## cuda_graph
 
@@ -232,6 +243,7 @@ vLLM/plugin non-MX FP8 paged MQA with FP32 page-tail scales
 |---|---|
 | triton | candidate Opt-in existing official vLLM Triton |
 | emu | candidate Explicit HCU page64/D128 next_n=1 pr |
+| aiter | candidate Default HCU AITER Opus page64 provid |
 
 路由变量：（auto）
 
@@ -463,17 +475,6 @@ DSA paged MQA logits
 
 路由变量：`1`/`triton`/`vendor`
 
-## minimax_h3_rotary_embedding
-
-MiniMax-H3 NeoX partial RoPE: DiT128/96 and VAE64/48; native preferred by plugin
-
-| 档位 | 状态 / 备注 |
-|---|---|
-| triton | candidate BF16/FP16/FP32 old-native canonical  |
-| torch | candidate CPU contract and diagnostic fallback |
-
-路由变量：（auto）
-
 ## rotary_embedding
 
 RoPE NeoX triton in place; GPT-J interleave = torch
@@ -613,6 +614,26 @@ triton extra.cuda libdevice -> hip/OCML 重定向（is_cuda 语义选路修正�
 | 档位 | 状态 / 备注 |
 |---|---|
 | hip-redirect | production __nv_* -> __ocml_*；hip 缺的名响亮 stub |
+
+路由变量：（auto）
+
+## diffusion_fp32_numerics
+
+SGLang diffusion FP32 算术原语，仅在可见设备均为 gfx936 时启用
+
+| 档位 | 状态 / 备注 |
+|---|---|
+| triton | candidate gfx936 上实测乘法与精确除法逐位对拍，倒平方根最大误差 1 ULP |
+
+路由变量：（auto）
+
+## diffusion_fa2
+
+SGLang Diffusion FA / FA2 后端
+
+| 档位 | 状态 / 备注 |
+|---|---|
+| vendor | candidate FA 保留官方后端标识，packed varlen 走 DTK FA2； |
 
 路由变量：（auto）
 
